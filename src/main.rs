@@ -1,8 +1,11 @@
-use iced::{executor, Alignment, Application, Command, Element, Length, Theme};
+use std::sync::Arc;
 
-use iced::widget::{column, container, row, text};
+use iced::{alignment, executor, Alignment, Application, Command, Element, Length, Theme};
 
+use iced::font::{self, Font};
 use iced::theme::Container;
+use iced::widget::{button, column, container, row, text, Text};
+use tokio::sync::Mutex;
 
 mod cpuinfofs;
 
@@ -15,12 +18,14 @@ struct BaseTop {
     cpuinfos: Vec<CpuMessage>,
 }
 
+#[allow(unused)]
 #[derive(Clone, Debug)]
 struct CpuMessage {
     name: String,
     processor: usize,
     mhz: String, // TODO: to i32
     cache_size: String,
+    show_more: bool,
 }
 
 #[allow(unused)]
@@ -28,6 +33,7 @@ struct CpuMessage {
 enum Message {
     RequestUpdate,
     Nothing,
+    CpuMessageStateChanged(Arc<Mutex<CpuMessage>>),
 }
 
 impl CpuMessage {
@@ -37,6 +43,7 @@ impl CpuMessage {
             text(self.processor.to_string()),
             text(self.mhz.as_str()),
             text(self.cache_size.as_str()),
+            button(edit_icon()).padding(10)
         ]
         .spacing(10)
         .align_items(Alignment::Center)
@@ -48,9 +55,19 @@ impl CpuMessage {
             .width(Length::Fill)
             .style(Container::Box)
             .into()
-
-        //.into()
     }
+}
+const ICONS: Font = Font::with_name("Iced-Todos-Icons");
+
+fn icon(unicode: char) -> Text<'static> {
+    text(unicode.to_string())
+        .font(ICONS)
+        .width(20)
+        .horizontal_alignment(alignment::Horizontal::Center)
+}
+
+fn edit_icon() -> Text<'static> {
+    icon('\u{F303}')
 }
 
 impl Application for BaseTop {
@@ -68,7 +85,11 @@ impl Application for BaseTop {
             BaseTop {
                 cpuinfos: Vec::new(),
             },
-            Command::perform(async {}, |_| Message::RequestUpdate),
+            Command::batch(vec![
+                font::load(include_bytes!("../fonts/icons.ttf").as_slice())
+                    .map(|_| Message::Nothing),
+                Command::perform(async {}, |_| Message::RequestUpdate),
+            ]),
         )
     }
 

@@ -45,6 +45,7 @@ pub(super) fn get_cpuinfo() -> Option<Vec<CpuMessage>> {
             processor,
             mhz,
             cache_size,
+            show_more: false,
         });
     }
     Some(output)
