@@ -1,8 +1,8 @@
 use iced::{alignment, executor, Alignment, Application, Command, Element, Length, Theme};
 
 use iced::font::{self, Font};
-use iced::theme::Container;
-use iced::widget::{column, container, row, scrollable, text, Text};
+use iced::theme::{self, Container};
+use iced::widget::{button, column, container, row, scrollable, text, Text};
 
 mod cpuinfofs;
 
@@ -70,6 +70,18 @@ fn edit_icon() -> Text<'static> {
     icon('\u{F303}')
 }
 
+impl BaseTop {
+    fn buttonbox(&self) -> Element<Message> {
+        row![
+            button(text("main"))
+                .style(theme::Button::Primary)
+                .padding(8),
+            button(text("top")).style(theme::Button::Text).padding(8),
+        ]
+        .into()
+    }
+}
+
 impl Application for BaseTop {
     type Executor = executor::Default;
     type Message = Message;
@@ -94,16 +106,16 @@ impl Application for BaseTop {
     }
 
     fn view(&self) -> iced::Element<'_, Self::Message, iced::Renderer<Self::Theme>> {
-        if self.cpuinfos.is_empty() {
+        let bottom: Element<_> = if self.cpuinfos.is_empty() {
             container(text("None")).center_y().center_x().into()
         } else {
             container(scrollable(
                 column(self.cpuinfos.iter().map(|cpuinfo| cpuinfo.view()).collect()).spacing(20),
             ))
             .height(Length::Fill)
-            .center_y()
             .into()
-        }
+        };
+        column![self.buttonbox(), bottom].into()
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
