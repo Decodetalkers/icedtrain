@@ -1,11 +1,8 @@
-use std::sync::Arc;
-
 use iced::{alignment, executor, Alignment, Application, Command, Element, Length, Theme};
 
 use iced::font::{self, Font};
 use iced::theme::Container;
-use iced::widget::{button, column, container, row, text, Text};
-use tokio::sync::Mutex;
+use iced::widget::{column, container, row, scrollable, text, Text};
 
 mod cpuinfofs;
 
@@ -33,7 +30,6 @@ struct CpuMessage {
 enum Message {
     RequestUpdate,
     Nothing,
-    CpuMessageStateChanged(Arc<Mutex<CpuMessage>>),
 }
 
 impl CpuMessage {
@@ -43,7 +39,6 @@ impl CpuMessage {
             text(self.processor.to_string()),
             text(self.mhz.as_str()),
             text(self.cache_size.as_str()),
-            button(edit_icon()).padding(10)
         ]
         .spacing(10)
         .align_items(Alignment::Center)
@@ -54,11 +49,15 @@ impl CpuMessage {
             .center_y()
             .width(Length::Fill)
             .style(Container::Box)
+            .padding(30)
             .into()
     }
 }
+
+#[allow(unused)]
 const ICONS: Font = Font::with_name("Iced-Todos-Icons");
 
+#[allow(unused)]
 fn icon(unicode: char) -> Text<'static> {
     text(unicode.to_string())
         .font(ICONS)
@@ -66,6 +65,7 @@ fn icon(unicode: char) -> Text<'static> {
         .horizontal_alignment(alignment::Horizontal::Center)
 }
 
+#[allow(unused)]
 fn edit_icon() -> Text<'static> {
     icon('\u{F303}')
 }
@@ -97,9 +97,12 @@ impl Application for BaseTop {
         if self.cpuinfos.is_empty() {
             container(text("None")).center_y().center_x().into()
         } else {
-            column(self.cpuinfos.iter().map(|cpuinfo| cpuinfo.view()).collect())
-                .spacing(20)
-                .into()
+            container(scrollable(
+                column(self.cpuinfos.iter().map(|cpuinfo| cpuinfo.view()).collect()).spacing(20),
+            ))
+            .height(Length::Fill)
+            .center_y()
+            .into()
         }
     }
 
