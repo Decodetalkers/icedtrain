@@ -8,7 +8,7 @@ mod cpuinfo;
 mod procinfos;
 
 use cpuinfo::CpuMessageVec;
-use procinfos::ProcInfoVec;
+use procinfos::{InfoShowKind, ProcInfoVec};
 
 fn main() -> iced::Result {
     env_logger::builder().format_timestamp(None).init();
@@ -28,13 +28,13 @@ struct BaseTop {
     procinfos: ProcInfoVec,
 }
 
-#[allow(unused)]
 #[derive(Clone, Copy, Debug)]
 pub enum Message {
     RequestCpuInfoUpdate,
     RequestProcInfoUpdate,
     StateChanged(Page),
-    ProcInfoShowTree(bool),
+    ProcInfoShowTree(procinfos::InfoShowKind),
+    ProcSortMethodChanged(procinfos::SortMethod),
     Nothing,
 }
 
@@ -133,18 +133,25 @@ impl Application for BaseTop {
                             self.procinfos.top_buttons(),
                             self.procinfos.title(),
                             scrollable(
-                                column(
-                                    self.procinfos
-                                        .iter()
-                                        .map(|procinfo| {
-                                            if self.procinfos.is_tree {
-                                                procinfo.treeview(0)
-                                            } else {
-                                                procinfo.view()
-                                            }
-                                        })
-                                        .collect(),
-                                )
+                                column({
+                                    match self.procinfos.infoshowkind {
+                                        InfoShowKind::Normal => self
+                                            .procinfos
+                                            .iter()
+                                            .map(|procinfo| procinfo.view())
+                                            .collect(),
+                                        InfoShowKind::TreeWithFullInfo => self
+                                            .procinfos
+                                            .iter_tree()
+                                            .map(|procinfo| procinfo.treeview(0))
+                                            .collect(),
+                                        InfoShowKind::TreeWithLessInfo => self
+                                            .procinfos
+                                            .iter()
+                                            .map(|procinfo| procinfo.treeview(0))
+                                            .collect(),
+                                    }
+                                })
                                 .spacing(20),
                             )
                         ]
@@ -163,7 +170,8 @@ impl Application for BaseTop {
             Message::RequestCpuInfoUpdate => self.cpuinfos.refresh(),
             Message::RequestProcInfoUpdate => self.procinfos.refresh(),
             Message::StateChanged(page) => self.page = page,
-            Message::ProcInfoShowTree(state) => self.procinfos.is_tree = state,
+            Message::ProcInfoShowTree(state) => self.procinfos.infoshowkind = state,
+            Message::ProcSortMethodChanged(method) => self.procinfos.set_sort_method(method),
             _ => {}
         }
         Command::none()

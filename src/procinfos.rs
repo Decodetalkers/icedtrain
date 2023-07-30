@@ -11,6 +11,23 @@ const PROC_PID_PROMOTE: &str = "Pid";
 const PROC_PPID_PROMOTE: &str = "PPid";
 const PROC_THREADS_PROMOTE: &str = "Threads";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InfoShowKind {
+    Normal,
+    TreeWithFullInfo,
+    TreeWithLessInfo,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SortMethod {
+    #[default]
+    Name,
+    Pid,
+    PPid,
+    Thread,
+    CmdLine,
+}
+
 fn get_key(line: &str) -> String {
     line.split(':').last().unwrap_or("").trim().to_string()
 }
@@ -31,8 +48,8 @@ impl ProcInfo {
         let row: Element<Message> = row![
             text(self.name.as_str()).width(Length::Fixed(150_f32)),
             text(self.pid.to_string()).width(Length::Fixed(60_f32)),
-            text(self.ppid.to_string()).width(Length::Fixed(ppidlen)),
-            text(self.threads.to_string()).width(Length::Fixed(60_f32)),
+            text(self.ppid.to_string()).width(Length::Fixed(60_f32)),
+            text(self.threads.to_string()).width(Length::Fixed(ppidlen)),
             text(
                 self.cmdline
                     .as_ref()
@@ -48,6 +65,7 @@ impl ProcInfo {
         .spacing(10)
         .align_items(Alignment::Start)
         .into();
+
         if self.children.is_empty() {
             container(row)
                 .width(Length::Fill)
@@ -60,10 +78,10 @@ impl ProcInfo {
             for child in self.children.iter() {
                 rows.push(child.treeview(tabnum + 1));
             }
-            container(column(rows).padding(0).spacing(5))
+            container(column(rows).padding(0).spacing(10))
                 .width(Length::Fill)
                 .style(Container::Box)
-                .padding(10)
+                .padding(if tabnum == 0 { 10 } else { 0 })
                 .into()
         }
     }
@@ -156,18 +174,86 @@ impl ProcInfo {
 
 #[derive(Clone, Debug)]
 pub struct ProcInfoVec {
-    pub is_tree: bool,
+    pub infoshowkind: InfoShowKind,
+    sort_method: SortMethod,
     inner: Vec<ProcInfo>,
+    inner_tree: Vec<ProcInfo>,
 }
 
 impl ProcInfoVec {
+    pub fn set_sort_method(&mut self, method: SortMethod) {
+        self.sort_method = method;
+        self.sort_infos();
+    }
+
+    fn sort_infos(&mut self) {
+        self.inner.sort_by(|a, b| match self.sort_method {
+            SortMethod::Pid => a.pid.partial_cmp(&b.pid).unwrap(),
+            SortMethod::PPid => a.ppid.partial_cmp(&b.ppid).unwrap(),
+            SortMethod::Thread => a.threads.partial_cmp(&b.threads).unwrap(),
+            SortMethod::Name => a.name.partial_cmp(&b.name).unwrap(),
+            SortMethod::CmdLine => a.cmdline.partial_cmp(&b.cmdline).unwrap(),
+        });
+        self.inner_tree.sort_by(|a, b| match self.sort_method {
+            SortMethod::Pid => a.pid.partial_cmp(&b.pid).unwrap(),
+            SortMethod::PPid => a.ppid.partial_cmp(&b.ppid).unwrap(),
+            SortMethod::Thread => a.threads.partial_cmp(&b.threads).unwrap(),
+            SortMethod::Name => a.name.partial_cmp(&b.name).unwrap(),
+            SortMethod::CmdLine => a.cmdline.partial_cmp(&b.cmdline).unwrap(),
+        });
+    }
+
     pub fn title(&self) -> Element<Message> {
         let row: Element<Message> = row![
-            text("Name").width(Length::Fixed(150_f32)),
-            text("Pid").width(Length::Fixed(60_f32)),
-            text("PPid").width(Length::Fixed(60_f32)),
-            text("Threads").width(Length::Fixed(60_f32)),
-            text("Cmdline")
+            button(text("Name"))
+                .width(Length::Fixed(150_f32))
+                .style({
+                    if self.sort_method == SortMethod::Name {
+                        theme::Button::Primary
+                    } else {
+                        theme::Button::Text
+                    }
+                })
+                .on_press(Message::ProcSortMethodChanged(SortMethod::Name)),
+            button(text("Pid"))
+                .width(Length::Fixed(60_f32))
+                .style({
+                    if self.sort_method == SortMethod::Pid {
+                        theme::Button::Primary
+                    } else {
+                        theme::Button::Text
+                    }
+                })
+                .on_press(Message::ProcSortMethodChanged(SortMethod::Pid)),
+            button(text("PPid"))
+                .width(Length::Fixed(60_f32))
+                .style({
+                    if self.sort_method == SortMethod::PPid {
+                        theme::Button::Primary
+                    } else {
+                        theme::Button::Text
+                    }
+                })
+                .on_press(Message::ProcSortMethodChanged(SortMethod::PPid)),
+            button(text("Threads"))
+                .width(Length::Fixed(60_f32))
+                .style({
+                    if self.sort_method == SortMethod::Thread {
+                        theme::Button::Primary
+                    } else {
+                        theme::Button::Text
+                    }
+                })
+                .on_press(Message::ProcSortMethodChanged(SortMethod::Thread)),
+            button(text("Cmdline"))
+                .style({
+                    if self.sort_method == SortMethod::CmdLine {
+                        theme::Button::Primary
+                    } else {
+                        theme::Button::Text
+                    }
+                })
+                .on_press(Message::ProcSortMethodChanged(SortMethod::CmdLine)),
         ]
         .spacing(10)
         .align_items(Alignment::Start)
@@ -184,23 +270,33 @@ impl ProcInfoVec {
         row![
             button(text("Normal"))
                 .style({
-                    if !self.is_tree {
+                    if self.infoshowkind == InfoShowKind::Normal {
                         theme::Button::Primary
                     } else {
                         theme::Button::Text
                     }
                 })
-                .on_press(Message::ProcInfoShowTree(false))
+                .on_press(Message::ProcInfoShowTree(InfoShowKind::Normal))
                 .padding(8),
-            button(text("Tree"))
+            button(text("TreeFullInfo"))
                 .style({
-                    if self.is_tree {
+                    if self.infoshowkind == InfoShowKind::TreeWithFullInfo {
                         theme::Button::Primary
                     } else {
                         theme::Button::Text
                     }
                 })
-                .on_press(Message::ProcInfoShowTree(true))
+                .on_press(Message::ProcInfoShowTree(InfoShowKind::TreeWithFullInfo))
+                .padding(8),
+            button(text("TreeLessInfo"))
+                .style({
+                    if self.infoshowkind == InfoShowKind::TreeWithLessInfo {
+                        theme::Button::Primary
+                    } else {
+                        theme::Button::Text
+                    }
+                })
+                .on_press(Message::ProcInfoShowTree(InfoShowKind::TreeWithLessInfo))
                 .padding(8),
         ]
         .into()
@@ -213,12 +309,16 @@ impl ProcInfoVec {
             }
         }
         self.inner = procs;
+        self.set_treedata();
+        self.sort_infos();
     }
 
     pub fn new() -> Self {
         ProcInfoVec {
-            is_tree: false,
+            sort_method: SortMethod::default(),
+            infoshowkind: InfoShowKind::Normal,
             inner: Vec::new(),
+            inner_tree: Vec::new(),
         }
     }
 
@@ -230,8 +330,11 @@ impl ProcInfoVec {
         self.inner.iter()
     }
 
-    #[allow(unused)]
-    pub fn tree(&self) -> Self {
+    pub fn iter_tree(&self) -> impl Iterator<Item = &ProcInfo> {
+        self.inner_tree.iter()
+    }
+
+    pub fn set_treedata(&mut self) {
         let mut procinfos: Vec<ProcInfo> = Vec::new();
         let mut markstatus: [bool; 5000000] = [false; 5000000];
         let mut oldinfos = self.inner.clone();
@@ -266,10 +369,7 @@ impl ProcInfoVec {
 
             oldinfos = nextinfos;
         }
-        ProcInfoVec {
-            is_tree: true,
-            inner: procinfos,
-        }
+        self.inner_tree = procinfos
     }
 
     #[allow(unused)]
