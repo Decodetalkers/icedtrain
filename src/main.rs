@@ -5,9 +5,10 @@ use iced::theme;
 use iced::widget::{button, column, container, row, scrollable, text, Text};
 
 mod cpuinfo;
+#[allow(unused)]
 mod procinfos;
 
-use cpuinfo::CpuMessage;
+use cpuinfo::CpuMessageVec;
 
 fn main() -> iced::Result {
     env_logger::builder().format_timestamp(None).init();
@@ -15,7 +16,7 @@ fn main() -> iced::Result {
 }
 
 struct BaseTop {
-    cpuinfos: Vec<CpuMessage>,
+    cpuinfos: CpuMessageVec,
 }
 
 #[allow(unused)]
@@ -66,7 +67,7 @@ impl Application for BaseTop {
     fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
         (
             BaseTop {
-                cpuinfos: Vec::new(),
+                cpuinfos: CpuMessageVec::new(),
             },
             Command::batch(vec![
                 font::load(include_bytes!("../fonts/icons.ttf").as_slice())
@@ -81,7 +82,13 @@ impl Application for BaseTop {
             container(text("None")).center_y().center_x().into()
         } else {
             container(scrollable(
-                column(self.cpuinfos.iter().map(|cpuinfo| cpuinfo.view()).collect()).spacing(20),
+                column(
+                    self.cpuinfos
+                        .get_iter()
+                        .map(|cpuinfo| cpuinfo.view())
+                        .collect(),
+                )
+                .spacing(20),
             ))
             .height(Length::Fill)
             .into()
@@ -91,12 +98,14 @@ impl Application for BaseTop {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         if let Message::RequestUpdate = message {
-            self.cpuinfos = cpuinfo::get_cpuinfo().unwrap_or(vec![]);
+            self.cpuinfos.refresh();
         }
         Command::none()
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
-        iced::time::every(std::time::Duration::from_secs(1)).map(|_| Message::RequestUpdate)
+        iced::Subscription::batch([
+            iced::time::every(std::time::Duration::from_secs(1)).map(|_| Message::RequestUpdate)
+        ])
     }
 }

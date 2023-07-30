@@ -10,6 +10,25 @@ const PROCESSOR_PROMOTE: &str = "processor";
 const MHZ_PROMOTE: &str = "cpu MHz";
 const CACHE_SIZE_PROMOTE: &str = "cache size";
 
+pub struct CpuMessageVec {
+    inner: Vec<CpuMessage>,
+}
+
+impl CpuMessageVec {
+    pub fn get_iter(&self) -> impl Iterator<Item = &CpuMessage> {
+        self.inner.iter()
+    }
+    pub fn refresh(&mut self) {
+        self.inner = get_cpuinfo().unwrap_or(Vec::new())
+    }
+    pub fn new() -> Self {
+        CpuMessageVec { inner: Vec::new() }
+    }
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+}
+
 #[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct CpuMessage {
@@ -65,7 +84,7 @@ pub(super) fn get_cpuinfo() -> Option<Vec<CpuMessage>> {
                 name = get_key(info);
             }
             if info.starts_with(PROCESSOR_PROMOTE) {
-                processor = get_key(info).replace(" ", "").parse().unwrap_or(0);
+                processor = get_key(info).replace(' ', "").parse().unwrap_or(0);
             }
 
             if info.starts_with(MHZ_PROMOTE) {
