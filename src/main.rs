@@ -5,7 +5,6 @@ use iced::theme;
 use iced::widget::{button, column, container, row, scrollable, text, Text};
 
 mod cpuinfo;
-#[allow(unused)]
 mod procinfos;
 
 use cpuinfo::CpuMessageVec;
@@ -109,14 +108,36 @@ impl Application for BaseTop {
     }
 
     fn view(&self) -> iced::Element<'_, Self::Message, iced::Renderer<Self::Theme>> {
-        let bottom: Element<_> = if self.cpuinfos.is_empty() {
-            container(text("None")).center_y().center_x().into()
-        } else {
-            container(scrollable(
-                column(self.cpuinfos.iter().map(|cpuinfo| cpuinfo.view()).collect()).spacing(20),
-            ))
-            .height(Length::Fill)
-            .into()
+        let bottom: Element<_> = match self.page {
+            Page::CpuInfoPage => {
+                if self.cpuinfos.is_empty() {
+                    container(text("None")).center_y().center_x().into()
+                } else {
+                    container(scrollable(
+                        column(self.cpuinfos.iter().map(|cpuinfo| cpuinfo.view()).collect())
+                            .spacing(20),
+                    ))
+                    .height(Length::Fill)
+                    .into()
+                }
+            }
+            Page::ProcInfoPage => {
+                if self.procinfos.is_empty() {
+                    container(text("None")).center_y().center_x().into()
+                } else {
+                    container(scrollable(
+                        column(
+                            self.procinfos
+                                .iter()
+                                .map(|cpuinfo| cpuinfo.view())
+                                .collect(),
+                        )
+                        .spacing(20),
+                    ))
+                    .height(Length::Fill)
+                    .into()
+                }
+            }
         };
         column![self.buttonbox(), bottom].into()
     }
@@ -125,6 +146,7 @@ impl Application for BaseTop {
         match message {
             Message::RequestCpuInfoUpdate => self.cpuinfos.refresh(),
             Message::RequestProcInfoUpdate => self.procinfos.refresh(),
+            Message::StateChanged(page) => self.page = page,
             _ => {}
         }
         Command::none()

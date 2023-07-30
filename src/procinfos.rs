@@ -1,5 +1,11 @@
 use std::path::Path;
 
+use iced::theme::Container;
+use iced::widget::{container, row, text};
+use iced::{Alignment, Element, Length};
+
+use crate::Message;
+
 const PROC_NAME_PROMOTE: &str = "Name";
 const PROC_PID_PROMOTE: &str = "Pid";
 const PROC_PPID_PROMOTE: &str = "PPid";
@@ -20,9 +26,99 @@ pub struct ProcInfo {
     pub children: Vec<ProcInfo>,
 }
 
+impl ProcInfo {
+    pub fn view(&self) -> Element<Message> {
+        let row: Element<Message> = row![
+            text(self.name.as_str()),
+            text(self.ppid.to_string()),
+            text(self.pid.to_string()),
+            text(
+                &self
+                    .cmdline
+                    .as_ref()
+                    .map(|name| if name.is_empty() {
+                        self.name.clone()
+                    } else {
+                        name.to_string()
+                    })
+                    .unwrap_or(self.name.to_string())
+                    .as_str()
+            ),
+        ]
+        .spacing(10)
+        .align_items(Alignment::Start)
+        .into();
+
+        container(row)
+            .center_x()
+            .center_y()
+            .width(Length::Fill)
+            .style(Container::Box)
+            .padding(30)
+            .into()
+    }
+    pub fn from_file<P: AsRef<Path>>(pa: P) -> Option<Self> {
+        let Ok(proccontent) = std::fs::read_to_string(&pa).map(|s| s.trim().to_string()) else {
+            return None;
+        };
+        let mut name = String::new();
+        let mut pid = 0;
+        let mut ppid = 0;
+        let mut threads = 1;
+        let mut cmdline = None;
+        let mut children = Vec::new();
+        for info in proccontent.lines() {
+            if info.starts_with(PROC_NAME_PROMOTE) {
+                name = get_key(info);
+            }
+            if info.starts_with(PROC_PID_PROMOTE) {
+                pid = get_key(info).parse().unwrap();
+            }
+            if info.starts_with(PROC_PPID_PROMOTE) {
+                ppid = get_key(info).parse().unwrap();
+            }
+            if info.starts_with(PROC_THREADS_PROMOTE) {
+                threads = get_key(info).parse().unwrap();
+            }
+        }
+        let fullpath: &Path = pa.as_ref().parent().unwrap();
+
+        let cmdlinepa: &Path = &fullpath.join("cmdline");
+        if cmdlinepa.exists() {
+            if let Ok(cmdlineread) =
+                std::fs::read_to_string(cmdlinepa).map(|s| s.trim().replace('\0', " ").to_string())
+            {
+                cmdline = Some(cmdlineread)
+            }
+        }
+
+        let taskpath: &Path = &fullpath.join("task");
+        if taskpath.exists() {
+            let pathstr = taskpath.to_string_lossy().to_string();
+            let pattern = format!("{pathstr}/*/status");
+            for pa in glob::glob(&pattern).into_iter().flatten().flatten() {
+                if let Some(procinfo) = ProcInfo::from_file(pa) {
+                    if procinfo.pid != pid {
+                        children.push(procinfo);
+                    }
+                }
+            }
+        }
+        Some(ProcInfo {
+            name,
+            pid,
+            ppid,
+            threads,
+            cmdline,
+            children,
+        })
+    }
+}
+
 #[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct ProcInfoVec {
+    is_tree: bool, // TODO: draw tree
     inner: Vec<ProcInfo>,
 }
 
@@ -38,17 +134,21 @@ impl ProcInfoVec {
     }
 
     pub fn new() -> Self {
-        ProcInfoVec { inner: Vec::new() }
+        ProcInfoVec {
+            is_tree: false,
+            inner: Vec::new(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &ProcInfo> {
         self.inner.iter()
     }
 
-    pub fn push(&mut self, info: ProcInfo) {
-        self.inner.push(info)
-    }
-
+    #[allow(unused)]
     pub fn tree(&self) -> Self {
         let mut procinfos: Vec<ProcInfo> = Vec::new();
         let mut markstatus: [bool; 5000000] = [false; 5000000];
@@ -84,70 +184,14 @@ impl ProcInfoVec {
 
             oldinfos = nextinfos;
         }
-        ProcInfoVec { inner: procinfos }
+        ProcInfoVec {
+            is_tree: true,
+            inner: procinfos,
+        }
     }
 
     #[allow(unused)]
     pub fn to_vec(&self) -> &Vec<ProcInfo> {
         &self.inner
-    }
-}
-
-impl ProcInfo {
-    pub fn from_file<P: AsRef<Path>>(pa: P) -> Option<Self> {
-        let Ok(proccontent) = std::fs::read_to_string(&pa).map(|s| s.trim().to_string()) else {
-            return None;
-        };
-        let mut name = String::new();
-        let mut pid = 0;
-        let mut ppid = 0;
-        let mut threads = 1;
-        let mut cmdline = None;
-        let mut children = Vec::new();
-        for info in proccontent.lines() {
-            if info.starts_with(PROC_NAME_PROMOTE) {
-                name = get_key(info);
-            }
-            if info.starts_with(PROC_PID_PROMOTE) {
-                pid = get_key(info).parse().unwrap();
-            }
-            if info.starts_with(PROC_PPID_PROMOTE) {
-                ppid = get_key(info).parse().unwrap();
-            }
-            if info.starts_with(PROC_THREADS_PROMOTE) {
-                threads = get_key(info).parse().unwrap();
-            }
-        }
-        let fullpath: &Path = pa.as_ref().parent().unwrap();
-
-        let cmdlinepa: &Path = &fullpath.join("cmdline");
-        if cmdlinepa.exists() {
-            if let Ok(cmdlineread) =
-                std::fs::read_to_string(cmdlinepa).map(|s| s.trim().to_string())
-            {
-                cmdline = Some(cmdlineread)
-            }
-        }
-
-        let taskpath: &Path = &fullpath.join("task");
-        if taskpath.exists() {
-            let pathstr = taskpath.to_string_lossy().to_string();
-            let pattern = format!("{pathstr}/*/status");
-            for pa in glob::glob(&pattern).into_iter().flatten().flatten() {
-                if let Some(procinfo) = ProcInfo::from_file(pa) {
-                    if procinfo.pid != pid {
-                        children.push(procinfo);
-                    }
-                }
-            }
-        }
-        Some(ProcInfo {
-            name,
-            pid,
-            ppid,
-            threads,
-            cmdline,
-            children,
-        })
     }
 }
