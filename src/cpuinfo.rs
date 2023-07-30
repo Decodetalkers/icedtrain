@@ -1,3 +1,6 @@
+use iced::theme::Container;
+use iced::widget::{container, row, text};
+use iced::{Alignment, Element, Length};
 const CPU_INFO: &str = "/proc/cpuinfo";
 
 const NAME_PROMOTE: &str = "model name";
@@ -7,7 +10,39 @@ const PROCESSOR_PROMOTE: &str = "processor";
 const MHZ_PROMOTE: &str = "cpu MHz";
 const CACHE_SIZE_PROMOTE: &str = "cache size";
 
-use crate::CpuMessage;
+#[allow(unused)]
+#[derive(Clone, Debug)]
+pub struct CpuMessage {
+    pub name: String,
+    pub processor: usize,
+    pub mhz: String, // TODO: to i32
+    pub cache_size: String,
+    pub show_more: bool,
+}
+
+use crate::Message;
+
+impl CpuMessage {
+    pub fn view(&self) -> Element<Message> {
+        let row: Element<Message> = row![
+            text(self.name.as_str()),
+            text(self.processor.to_string()),
+            text(self.mhz.as_str()),
+            text(self.cache_size.as_str()),
+        ]
+        .spacing(10)
+        .align_items(Alignment::Center)
+        .into();
+
+        container(row)
+            .center_x()
+            .center_y()
+            .width(Length::Fill)
+            .style(Container::Box)
+            .padding(30)
+            .into()
+    }
+}
 
 fn get_key(line: &str) -> String {
     line.split(':').last().unwrap_or("").to_string()

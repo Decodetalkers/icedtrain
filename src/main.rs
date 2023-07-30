@@ -1,10 +1,13 @@
-use iced::{alignment, executor, Alignment, Application, Command, Element, Length, Theme};
+use iced::{alignment, executor, Application, Command, Element, Length, Theme};
 
 use iced::font::{self, Font};
-use iced::theme::{self, Container};
+use iced::theme;
 use iced::widget::{button, column, container, row, scrollable, text, Text};
 
-mod cpuinfofs;
+mod cpuinfo;
+mod procinfos;
+
+use cpuinfo::CpuMessage;
 
 fn main() -> iced::Result {
     env_logger::builder().format_timestamp(None).init();
@@ -17,41 +20,9 @@ struct BaseTop {
 
 #[allow(unused)]
 #[derive(Clone, Debug)]
-struct CpuMessage {
-    name: String,
-    processor: usize,
-    mhz: String, // TODO: to i32
-    cache_size: String,
-    show_more: bool,
-}
-
-#[allow(unused)]
-#[derive(Clone, Debug)]
-enum Message {
+pub enum Message {
     RequestUpdate,
     Nothing,
-}
-
-impl CpuMessage {
-    fn view(&self) -> Element<Message> {
-        let row: Element<Message> = row![
-            text(self.name.as_str()),
-            text(self.processor.to_string()),
-            text(self.mhz.as_str()),
-            text(self.cache_size.as_str()),
-        ]
-        .spacing(10)
-        .align_items(Alignment::Center)
-        .into();
-
-        container(row)
-            .center_x()
-            .center_y()
-            .width(Length::Fill)
-            .style(Container::Box)
-            .padding(30)
-            .into()
-    }
 }
 
 #[allow(unused)]
@@ -120,7 +91,7 @@ impl Application for BaseTop {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         if let Message::RequestUpdate = message {
-            self.cpuinfos = cpuinfofs::get_cpuinfo().unwrap_or(vec![]);
+            self.cpuinfos = cpuinfo::get_cpuinfo().unwrap_or(vec![]);
         }
         Command::none()
     }
