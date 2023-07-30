@@ -9,6 +9,7 @@ mod cpuinfo;
 mod procinfos;
 
 use cpuinfo::CpuMessageVec;
+use procinfos::ProcInfoVec;
 
 fn main() -> iced::Result {
     env_logger::builder().format_timestamp(None).init();
@@ -17,12 +18,14 @@ fn main() -> iced::Result {
 
 struct BaseTop {
     cpuinfos: CpuMessageVec,
+    procinfos: ProcInfoVec,
 }
 
 #[allow(unused)]
 #[derive(Clone, Debug)]
 pub enum Message {
-    RequestUpdate,
+    RequestCpuInfoUpdate,
+    RequestProcInfoUpdate,
     Nothing,
 }
 
@@ -68,11 +71,12 @@ impl Application for BaseTop {
         (
             BaseTop {
                 cpuinfos: CpuMessageVec::new(),
+                procinfos: ProcInfoVec::new(),
             },
             Command::batch(vec![
                 font::load(include_bytes!("../fonts/icons.ttf").as_slice())
                     .map(|_| Message::Nothing),
-                Command::perform(async {}, |_| Message::RequestUpdate),
+                Command::perform(async {}, |_| Message::RequestCpuInfoUpdate),
             ]),
         )
     }
@@ -82,13 +86,7 @@ impl Application for BaseTop {
             container(text("None")).center_y().center_x().into()
         } else {
             container(scrollable(
-                column(
-                    self.cpuinfos
-                        .get_iter()
-                        .map(|cpuinfo| cpuinfo.view())
-                        .collect(),
-                )
-                .spacing(20),
+                column(self.cpuinfos.iter().map(|cpuinfo| cpuinfo.view()).collect()).spacing(20),
             ))
             .height(Length::Fill)
             .into()
@@ -97,15 +95,20 @@ impl Application for BaseTop {
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
-        if let Message::RequestUpdate = message {
-            self.cpuinfos.refresh();
+        match message {
+            Message::RequestCpuInfoUpdate => self.cpuinfos.refresh(),
+            Message::RequestProcInfoUpdate => self.procinfos.refresh(),
+            _ => {}
         }
         Command::none()
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
         iced::Subscription::batch([
-            iced::time::every(std::time::Duration::from_secs(1)).map(|_| Message::RequestUpdate)
+            iced::time::every(std::time::Duration::from_secs(1))
+                .map(|_| Message::RequestCpuInfoUpdate),
+            iced::time::every(std::time::Duration::from_secs(2))
+                .map(|_| Message::RequestProcInfoUpdate),
         ])
     }
 }

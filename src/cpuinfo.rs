@@ -15,7 +15,7 @@ pub struct CpuMessageVec {
 }
 
 impl CpuMessageVec {
-    pub fn get_iter(&self) -> impl Iterator<Item = &CpuMessage> {
+    pub fn iter(&self) -> impl Iterator<Item = &CpuMessage> {
         self.inner.iter()
     }
     pub fn refresh(&mut self) {
