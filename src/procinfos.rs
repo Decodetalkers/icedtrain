@@ -33,7 +33,7 @@ impl ProcInfo {
             text(self.ppid.to_string()),
             text(self.pid.to_string()),
             text(
-                &self
+                self
                     .cmdline
                     .as_ref()
                     .map(|name| if name.is_empty() {
