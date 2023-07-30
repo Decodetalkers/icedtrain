@@ -95,7 +95,10 @@ impl Application for BaseTop {
     type Flags = ();
 
     fn title(&self) -> String {
-        "CpuInfos".to_string()
+        match self.page {
+            Page::CpuInfoPage => "SystemMonitor-CpuInfo".to_string(),
+            Page::ProcInfoPage => "SystemMonitor-ProcInfo".to_string(),
+        }
     }
 
     fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {

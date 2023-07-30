@@ -238,12 +238,12 @@ impl ProcInfoVec {
     }
 
     pub fn searchbar(&self) -> Element<Message> {
-        text_input("What needs to be done?", self.searchpattern.as_str())
+        text_input("Search Pattern", self.searchpattern.as_str())
             .id(INPUT_ID.clone())
             .on_input(Message::ProcSearchPatternChanged)
             .on_submit(Message::ProcSearchBarVisibleChanged(false))
-            .padding(15)
-            .size(30)
+            .padding(5)
+            .size(15)
             .into()
     }
 
