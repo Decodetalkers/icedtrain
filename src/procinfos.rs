@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use iced::theme::Container;
-use iced::widget::{container, row, text};
+use iced::theme::{self, Container};
+use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 use crate::Message;
@@ -25,25 +25,49 @@ pub struct ProcInfo {
     pub cmdline: Option<String>,
     pub children: Vec<ProcInfo>,
 }
-pub fn title() -> Element<'static, Message> {
-    let row: Element<Message> = row![
-        text("Name").width(Length::Fixed(150_f32)),
-        text("PPid").width(Length::Fixed(60_f32)),
-        text("Pid").width(Length::Fixed(60_f32)),
-        text("Cmdline")
-    ]
-    .spacing(10)
-    .align_items(Alignment::Start)
-    .into();
-
-    container(row)
-        .width(Length::Fill)
-        .style(Container::Box)
-        .padding(10)
-        .into()
-}
 
 impl ProcInfo {
+    pub fn treeview(&self, tabnum: usize) -> Element<Message> {
+        let pidlen = 60_f32 + tabnum as f32 * 30_f32;
+        let row: Element<Message> = row![
+            text(self.name.as_str()).width(Length::Fixed(150_f32)),
+            text(self.ppid.to_string()).width(Length::Fixed(60_f32)),
+            text(self.pid.to_string()).width(Length::Fixed(pidlen)),
+            text(
+                self.cmdline
+                    .as_ref()
+                    .map(|name| if name.is_empty() {
+                        self.name.clone()
+                    } else {
+                        name.to_string()
+                    })
+                    .unwrap_or(self.name.to_string())
+                    .as_str()
+            ),
+        ]
+        .spacing(10)
+        .align_items(Alignment::Start)
+        .into();
+        if self.children.is_empty() {
+            container(row)
+                .width(Length::Fill)
+                .style(Container::Box)
+                .padding(if tabnum == 0 { 10 } else { 0 })
+                .into()
+        } else {
+            let mut rows: Vec<Element<Message>> = Vec::new();
+            rows.push(row);
+            for child in self.children.iter() {
+                rows.push(child.treeview(tabnum + 1));
+            }
+            container(column(rows).padding(0).spacing(5))
+                .width(Length::Fill)
+                .style(Container::Box)
+                .padding(10)
+                .into()
+        }
+    }
+
     pub fn view(&self) -> Element<Message> {
         let row: Element<Message> = row![
             text(self.name.as_str()).width(Length::Fixed(150_f32)),
@@ -132,11 +156,54 @@ impl ProcInfo {
 #[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct ProcInfoVec {
-    is_tree: bool, // TODO: draw tree
+    pub is_tree: bool, // TODO: draw tree
     inner: Vec<ProcInfo>,
 }
 
 impl ProcInfoVec {
+    pub fn title(&self) -> Element<Message> {
+        let row: Element<Message> = row![
+            text("Name").width(Length::Fixed(150_f32)),
+            text("PPid").width(Length::Fixed(60_f32)),
+            text("Pid").width(Length::Fixed(60_f32)),
+            text("Cmdline")
+        ]
+        .spacing(10)
+        .align_items(Alignment::Start)
+        .into();
+
+        container(row)
+            .width(Length::Fill)
+            .style(Container::Box)
+            .padding(10)
+            .into()
+    }
+
+    pub fn top_buttons(&self) -> Element<Message> {
+        row![
+            button(text("Normal"))
+                .style({
+                    if !self.is_tree {
+                        theme::Button::Primary
+                    } else {
+                        theme::Button::Text
+                    }
+                })
+                .on_press(Message::ProcInfoShowTree(false))
+                .padding(8),
+            button(text("Tree"))
+                .style({
+                    if self.is_tree {
+                        theme::Button::Primary
+                    } else {
+                        theme::Button::Text
+                    }
+                })
+                .on_press(Message::ProcInfoShowTree(true))
+                .padding(8),
+        ]
+        .into()
+    }
     pub fn refresh(&mut self) {
         let mut procs = Vec::new();
         for pa in glob::glob("/proc/*/status").into_iter().flatten().flatten() {

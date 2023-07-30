@@ -34,6 +34,7 @@ pub enum Message {
     RequestCpuInfoUpdate,
     RequestProcInfoUpdate,
     StateChanged(Page),
+    ProcInfoShowTree(bool),
     Nothing,
 }
 
@@ -127,19 +128,27 @@ impl Application for BaseTop {
                 if self.procinfos.is_empty() {
                     container(text("None")).center_y().center_x().into()
                 } else {
-                    container(column![
-                        procinfos::title(),
-                        scrollable(
-                            column(
-                                self.procinfos
-                                    .iter()
-                                    .map(|procinfo| procinfo.view())
-                                    .collect(),
+                    container(
+                        column![
+                            self.procinfos.top_buttons(),
+                            self.procinfos.title(),
+                            scrollable(
+                                column(
+                                    self.procinfos
+                                        .iter()
+                                        .map(|procinfo| {
+                                            if self.procinfos.is_tree {
+                                                procinfo.treeview(0)
+                                            } else {
+                                                procinfo.view()
+                                            }
+                                        })
+                                        .collect(),
+                                )
+                                .spacing(20),
                             )
-                            .spacing(20),
-                        )
-                    ]
-                    .spacing(10)
+                        ]
+                        .spacing(10),
                     )
                     .height(Length::Fill)
                     .into()
@@ -154,6 +163,7 @@ impl Application for BaseTop {
             Message::RequestCpuInfoUpdate => self.cpuinfos.refresh(),
             Message::RequestProcInfoUpdate => self.procinfos.refresh(),
             Message::StateChanged(page) => self.page = page,
+            Message::ProcInfoShowTree(state) => self.procinfos.is_tree = state,
             _ => {}
         }
         Command::none()
