@@ -55,7 +55,7 @@ fn edit_icon() -> Text<'static> {
 
 impl BaseTop {
     fn buttonbox(&self) -> Element<Message> {
-        row![
+        container(row![
             button(text("cpuInfo"))
                 .style({
                     if self.page == Page::CpuInfoPage {
@@ -76,7 +76,9 @@ impl BaseTop {
                 })
                 .on_press(Message::StateChanged(Page::ProcInfoPage))
                 .padding(8),
-        ]
+        ])
+        .width(Length::Fill)
+        .center_x()
         .into()
     }
 }
@@ -125,15 +127,20 @@ impl Application for BaseTop {
                 if self.procinfos.is_empty() {
                     container(text("None")).center_y().center_x().into()
                 } else {
-                    container(scrollable(
-                        column(
-                            self.procinfos
-                                .iter()
-                                .map(|cpuinfo| cpuinfo.view())
-                                .collect(),
+                    container(column![
+                        procinfos::title(),
+                        scrollable(
+                            column(
+                                self.procinfos
+                                    .iter()
+                                    .map(|procinfo| procinfo.view())
+                                    .collect(),
+                            )
+                            .spacing(20),
                         )
-                        .spacing(20),
-                    ))
+                    ]
+                    .spacing(10)
+                    )
                     .height(Length::Fill)
                     .into()
                 }

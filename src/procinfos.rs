@@ -25,16 +25,32 @@ pub struct ProcInfo {
     pub cmdline: Option<String>,
     pub children: Vec<ProcInfo>,
 }
+pub fn title() -> Element<'static, Message> {
+    let row: Element<Message> = row![
+        text("Name").width(Length::Fixed(150_f32)),
+        text("PPid").width(Length::Fixed(40_f32)),
+        text("Pid").width(Length::Fixed(40_f32)),
+        text("Cmdline")
+    ]
+    .spacing(10)
+    .align_items(Alignment::Start)
+    .into();
+
+    container(row)
+        .width(Length::Fill)
+        .style(Container::Box)
+        .padding(10)
+        .into()
+}
 
 impl ProcInfo {
     pub fn view(&self) -> Element<Message> {
         let row: Element<Message> = row![
-            text(self.name.as_str()),
-            text(self.ppid.to_string()),
-            text(self.pid.to_string()),
+            text(self.name.as_str()).width(Length::Fixed(150_f32)),
+            text(self.ppid.to_string()).width(Length::Fixed(40_f32)),
+            text(self.pid.to_string()).width(Length::Fixed(40_f32)),
             text(
-                self
-                    .cmdline
+                self.cmdline
                     .as_ref()
                     .map(|name| if name.is_empty() {
                         self.name.clone()
@@ -50,11 +66,9 @@ impl ProcInfo {
         .into();
 
         container(row)
-            .center_x()
-            .center_y()
             .width(Length::Fill)
             .style(Container::Box)
-            .padding(30)
+            .padding(10)
             .into()
     }
     pub fn from_file<P: AsRef<Path>>(pa: P) -> Option<Self> {
