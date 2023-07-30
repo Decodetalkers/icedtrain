@@ -28,8 +28,8 @@ pub struct ProcInfo {
 pub fn title() -> Element<'static, Message> {
     let row: Element<Message> = row![
         text("Name").width(Length::Fixed(150_f32)),
-        text("PPid").width(Length::Fixed(40_f32)),
-        text("Pid").width(Length::Fixed(40_f32)),
+        text("PPid").width(Length::Fixed(60_f32)),
+        text("Pid").width(Length::Fixed(60_f32)),
         text("Cmdline")
     ]
     .spacing(10)
@@ -47,8 +47,8 @@ impl ProcInfo {
     pub fn view(&self) -> Element<Message> {
         let row: Element<Message> = row![
             text(self.name.as_str()).width(Length::Fixed(150_f32)),
-            text(self.ppid.to_string()).width(Length::Fixed(40_f32)),
-            text(self.pid.to_string()).width(Length::Fixed(40_f32)),
+            text(self.ppid.to_string()).width(Length::Fixed(60_f32)),
+            text(self.pid.to_string()).width(Length::Fixed(60_f32)),
             text(
                 self.cmdline
                     .as_ref()
