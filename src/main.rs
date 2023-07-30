@@ -16,16 +16,25 @@ fn main() -> iced::Result {
     BaseTop::run(iced::Settings::default())
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Page {
+    #[default]
+    CpuInfoPage,
+    ProcInfoPage,
+}
+
 struct BaseTop {
+    page: Page,
     cpuinfos: CpuMessageVec,
     procinfos: ProcInfoVec,
 }
 
 #[allow(unused)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Message {
     RequestCpuInfoUpdate,
     RequestProcInfoUpdate,
+    StateChanged(Page),
     Nothing,
 }
 
@@ -48,10 +57,26 @@ fn edit_icon() -> Text<'static> {
 impl BaseTop {
     fn buttonbox(&self) -> Element<Message> {
         row![
-            button(text("main"))
-                .style(theme::Button::Primary)
+            button(text("cpuInfo"))
+                .style({
+                    if self.page == Page::CpuInfoPage {
+                        theme::Button::Primary
+                    } else {
+                        theme::Button::Text
+                    }
+                })
+                .on_press(Message::StateChanged(Page::CpuInfoPage))
                 .padding(8),
-            button(text("top")).style(theme::Button::Text).padding(8),
+            button(text("top"))
+                .style({
+                    if self.page == Page::ProcInfoPage {
+                        theme::Button::Primary
+                    } else {
+                        theme::Button::Text
+                    }
+                })
+                .on_press(Message::StateChanged(Page::ProcInfoPage))
+                .padding(8),
         ]
         .into()
     }
@@ -70,6 +95,7 @@ impl Application for BaseTop {
     fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
         (
             BaseTop {
+                page: Page::default(),
                 cpuinfos: CpuMessageVec::new(),
                 procinfos: ProcInfoVec::new(),
             },
@@ -77,6 +103,7 @@ impl Application for BaseTop {
                 font::load(include_bytes!("../fonts/icons.ttf").as_slice())
                     .map(|_| Message::Nothing),
                 Command::perform(async {}, |_| Message::RequestCpuInfoUpdate),
+                Command::perform(async {}, |_| Message::RequestProcInfoUpdate),
             ]),
         )
     }

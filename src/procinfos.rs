@@ -27,18 +27,14 @@ pub struct ProcInfoVec {
 }
 
 impl ProcInfoVec {
-    fn get_infos() -> Self {
-        let mut procs = ProcInfoVec::new();
+    pub fn refresh(&mut self) {
+        let mut procs = Vec::new();
         for pa in glob::glob("/proc/*/status").into_iter().flatten().flatten() {
             if let Some(procinfo) = ProcInfo::from_file(pa) {
                 procs.push(procinfo);
             }
         }
-        procs
-    }
-
-    pub fn refresh(&mut self) {
-        *self = ProcInfoVec::get_infos()
+        self.inner = procs;
     }
 
     pub fn new() -> Self {
