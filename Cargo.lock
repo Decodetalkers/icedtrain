@@ -1225,7 +1225,9 @@ dependencies = [
  "iced_futures 0.6.0",
  "iced_native",
  "image",
+ "once_cell",
  "pipe-trait",
+ "regex",
  "tokio",
 ]
 

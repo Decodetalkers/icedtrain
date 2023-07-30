@@ -1,10 +1,12 @@
 use std::path::Path;
 
-use iced::theme::{self, Container};
-use iced::widget::{button, column, container, row, text};
-use iced::{Alignment, Element, Length};
-
 use crate::Message;
+use iced::theme::{self, Container};
+use iced::widget::{button, column, container, row, text, text_input};
+use iced::{Alignment, Element, Length};
+use once_cell::sync::Lazy;
+
+pub static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 
 const PROC_NAME_PROMOTE: &str = "Name";
 const PROC_PID_PROMOTE: &str = "Pid";
@@ -43,6 +45,19 @@ pub struct ProcInfo {
 }
 
 impl ProcInfo {
+    fn is_match_pattern(&self, re: regex::Regex) -> bool {
+        re.is_match(&self.name.to_lowercase())
+            || re.is_match(
+                self
+                    .cmdline
+                    .as_ref()
+                    .unwrap_or(&"".to_string().to_lowercase()),
+            )
+            || self
+                .children
+                .iter()
+                .any(|unit| unit.is_match_pattern(re.clone()))
+    }
     pub fn treeview(&self, tabnum: usize) -> Element<Message> {
         let ppidlen = 60_f32 + tabnum as f32 * 30_f32;
         let row: Element<Message> = row![
@@ -177,7 +192,11 @@ pub struct ProcInfoVec {
     pub infoshowkind: InfoShowKind,
     sort_method: SortMethod,
     inner: Vec<ProcInfo>,
+    inner_search: Vec<ProcInfo>,
     inner_tree: Vec<ProcInfo>,
+    inner_tree_search: Vec<ProcInfo>,
+    searchpattern: String,
+    pub showsearchbar: bool,
 }
 
 impl ProcInfoVec {
@@ -194,6 +213,13 @@ impl ProcInfoVec {
             SortMethod::Name => a.name.partial_cmp(&b.name).unwrap(),
             SortMethod::CmdLine => a.cmdline.partial_cmp(&b.cmdline).unwrap(),
         });
+        self.inner_search.sort_by(|a, b| match self.sort_method {
+            SortMethod::Pid => a.pid.partial_cmp(&b.pid).unwrap(),
+            SortMethod::PPid => a.ppid.partial_cmp(&b.ppid).unwrap(),
+            SortMethod::Thread => a.threads.partial_cmp(&b.threads).unwrap(),
+            SortMethod::Name => a.name.partial_cmp(&b.name).unwrap(),
+            SortMethod::CmdLine => a.cmdline.partial_cmp(&b.cmdline).unwrap(),
+        });
         self.inner_tree.sort_by(|a, b| match self.sort_method {
             SortMethod::Pid => a.pid.partial_cmp(&b.pid).unwrap(),
             SortMethod::PPid => a.ppid.partial_cmp(&b.ppid).unwrap(),
@@ -201,6 +227,28 @@ impl ProcInfoVec {
             SortMethod::Name => a.name.partial_cmp(&b.name).unwrap(),
             SortMethod::CmdLine => a.cmdline.partial_cmp(&b.cmdline).unwrap(),
         });
+        self.inner_tree_search
+            .sort_by(|a, b| match self.sort_method {
+                SortMethod::Pid => a.pid.partial_cmp(&b.pid).unwrap(),
+                SortMethod::PPid => a.ppid.partial_cmp(&b.ppid).unwrap(),
+                SortMethod::Thread => a.threads.partial_cmp(&b.threads).unwrap(),
+                SortMethod::Name => a.name.partial_cmp(&b.name).unwrap(),
+                SortMethod::CmdLine => a.cmdline.partial_cmp(&b.cmdline).unwrap(),
+            });
+    }
+
+    pub fn searchbar(&self) -> Element<Message> {
+        text_input("What needs to be done?", self.searchpattern.as_str())
+            .id(INPUT_ID.clone())
+            .on_input(Message::ProcSearchPatternChanged)
+            .on_submit(Message::ProcSearchBarVisibleChanged(false))
+            .padding(15)
+            .size(30)
+            .into()
+    }
+
+    pub fn set_searchpattern(&mut self, pattern: String) {
+        self.searchpattern = pattern;
     }
 
     pub fn title(&self) -> Element<Message> {
@@ -301,6 +349,7 @@ impl ProcInfoVec {
         ]
         .into()
     }
+
     pub fn refresh(&mut self) {
         let mut procs = Vec::new();
         for pa in glob::glob("/proc/*/status").into_iter().flatten().flatten() {
@@ -310,7 +359,24 @@ impl ProcInfoVec {
         }
         self.inner = procs;
         self.set_treedata();
+        self.set_filiter();
         self.sort_infos();
+    }
+
+    pub fn set_filiter(&mut self) {
+        let re = regex::Regex::new(&self.searchpattern.to_lowercase()).unwrap();
+        self.inner_search = self
+            .inner
+            .iter()
+            .filter(|unit| unit.is_match_pattern(re.clone()))
+            .cloned()
+            .collect();
+        self.inner_tree_search = self
+            .inner_tree
+            .iter()
+            .filter(|unit| unit.is_match_pattern(re.clone()))
+            .cloned()
+            .collect();
     }
 
     pub fn new() -> Self {
@@ -318,7 +384,11 @@ impl ProcInfoVec {
             sort_method: SortMethod::default(),
             infoshowkind: InfoShowKind::Normal,
             inner: Vec::new(),
+            inner_search: Vec::new(),
             inner_tree: Vec::new(),
+            inner_tree_search: Vec::new(),
+            searchpattern: String::new(),
+            showsearchbar: false,
         }
     }
 
@@ -330,8 +400,16 @@ impl ProcInfoVec {
         self.inner.iter()
     }
 
+    pub fn iter_search(&self) -> impl Iterator<Item = &ProcInfo> {
+        self.inner_search.iter()
+    }
+
     pub fn iter_tree(&self) -> impl Iterator<Item = &ProcInfo> {
         self.inner_tree.iter()
+    }
+
+    pub fn iter_tree_search(&self) -> impl Iterator<Item = &ProcInfo> {
+        self.inner_tree_search.iter()
     }
 
     pub fn set_treedata(&mut self) {

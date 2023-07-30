@@ -2,7 +2,7 @@ use iced::{alignment, executor, Application, Command, Element, Length, Theme};
 
 use iced::font::{self, Font};
 use iced::theme;
-use iced::widget::{button, column, container, row, scrollable, text, Text};
+use iced::widget::{button, column, container, row, scrollable, text, text_input, Text};
 
 mod cpuinfo;
 mod procinfos;
@@ -28,13 +28,17 @@ struct BaseTop {
     procinfos: ProcInfoVec,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Message {
     RequestCpuInfoUpdate,
     RequestProcInfoUpdate,
     StateChanged(Page),
+
     ProcInfoShowTree(procinfos::InfoShowKind),
     ProcSortMethodChanged(procinfos::SortMethod),
+    ProcSearchBarVisibleChanged(bool),
+    ProcSearchPatternChanged(String),
+
     Nothing,
 }
 
@@ -129,32 +133,59 @@ impl Application for BaseTop {
                     container(text("None")).center_y().center_x().into()
                 } else {
                     container(
-                        column![
-                            self.procinfos.top_buttons(),
-                            self.procinfos.title(),
-                            scrollable(
-                                column({
-                                    match self.procinfos.infoshowkind {
-                                        InfoShowKind::Normal => self
-                                            .procinfos
-                                            .iter()
-                                            .map(|procinfo| procinfo.view())
-                                            .collect(),
-                                        InfoShowKind::TreeWithFullInfo => self
-                                            .procinfos
-                                            .iter_tree()
-                                            .map(|procinfo| procinfo.treeview(0))
-                                            .collect(),
-                                        InfoShowKind::TreeWithLessInfo => self
-                                            .procinfos
-                                            .iter()
-                                            .map(|procinfo| procinfo.treeview(0))
-                                            .collect(),
+                        column({
+                            let mut col: Vec<Element<Message>> = Vec::new();
+                            if self.procinfos.showsearchbar {
+                                col.push(self.procinfos.searchbar());
+                            }
+                            col.append(&mut vec![
+                                self.procinfos.top_buttons(),
+                                self.procinfos.title(),
+                                scrollable({
+                                    if self.procinfos.showsearchbar {
+                                        column(match self.procinfos.infoshowkind {
+                                            InfoShowKind::Normal => self
+                                                .procinfos
+                                                .iter_search()
+                                                .map(|procinfo| procinfo.view())
+                                                .collect(),
+                                            InfoShowKind::TreeWithFullInfo => self
+                                                .procinfos
+                                                .iter_tree_search()
+                                                .map(|procinfo| procinfo.treeview(0))
+                                                .collect(),
+                                            InfoShowKind::TreeWithLessInfo => self
+                                                .procinfos
+                                                .iter_search()
+                                                .map(|procinfo| procinfo.treeview(0))
+                                                .collect(),
+                                        })
+                                        .spacing(20)
+                                    } else {
+                                        column(match self.procinfos.infoshowkind {
+                                            InfoShowKind::Normal => self
+                                                .procinfos
+                                                .iter()
+                                                .map(|procinfo| procinfo.view())
+                                                .collect(),
+                                            InfoShowKind::TreeWithFullInfo => self
+                                                .procinfos
+                                                .iter_tree()
+                                                .map(|procinfo| procinfo.treeview(0))
+                                                .collect(),
+                                            InfoShowKind::TreeWithLessInfo => self
+                                                .procinfos
+                                                .iter()
+                                                .map(|procinfo| procinfo.treeview(0))
+                                                .collect(),
+                                        })
+                                        .spacing(20)
                                     }
                                 })
-                                .spacing(20),
-                            )
-                        ]
+                                .into(),
+                            ]);
+                            col
+                        })
                         .spacing(10),
                     )
                     .height(Length::Fill)
@@ -172,6 +203,13 @@ impl Application for BaseTop {
             Message::StateChanged(page) => self.page = page,
             Message::ProcInfoShowTree(state) => self.procinfos.infoshowkind = state,
             Message::ProcSortMethodChanged(method) => self.procinfos.set_sort_method(method),
+            Message::ProcSearchBarVisibleChanged(visible) => {
+                self.procinfos.showsearchbar = visible;
+                if visible {
+                    return text_input::focus(procinfos::INPUT_ID.clone());
+                }
+            }
+            Message::ProcSearchPatternChanged(pattern) => self.procinfos.set_searchpattern(pattern),
             _ => {}
         }
         Command::none()
@@ -183,6 +221,20 @@ impl Application for BaseTop {
                 .map(|_| Message::RequestCpuInfoUpdate),
             iced::time::every(std::time::Duration::from_secs(2))
                 .map(|_| Message::RequestProcInfoUpdate),
+            iced::subscription::events_with(|event, status| {
+                if let iced::event::Status::Captured = status {
+                    return None;
+                }
+                if let iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                    key_code: iced::keyboard::KeyCode::F,
+                    modifiers: iced::keyboard::Modifiers::ALT,
+                }) = event
+                {
+                    Some(Message::ProcSearchBarVisibleChanged(true))
+                } else {
+                    None
+                }
+            }),
         ])
     }
 }
