@@ -15,7 +15,6 @@ fn get_key(line: &str) -> String {
     line.split(':').last().unwrap_or("").trim().to_string()
 }
 
-#[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct ProcInfo {
     pub name: String,
@@ -28,11 +27,12 @@ pub struct ProcInfo {
 
 impl ProcInfo {
     pub fn treeview(&self, tabnum: usize) -> Element<Message> {
-        let pidlen = 60_f32 + tabnum as f32 * 30_f32;
+        let ppidlen = 60_f32 + tabnum as f32 * 30_f32;
         let row: Element<Message> = row![
             text(self.name.as_str()).width(Length::Fixed(150_f32)),
-            text(self.ppid.to_string()).width(Length::Fixed(60_f32)),
-            text(self.pid.to_string()).width(Length::Fixed(pidlen)),
+            text(self.pid.to_string()).width(Length::Fixed(60_f32)),
+            text(self.ppid.to_string()).width(Length::Fixed(ppidlen)),
+            text(self.threads.to_string()).width(Length::Fixed(60_f32)),
             text(
                 self.cmdline
                     .as_ref()
@@ -71,8 +71,9 @@ impl ProcInfo {
     pub fn view(&self) -> Element<Message> {
         let row: Element<Message> = row![
             text(self.name.as_str()).width(Length::Fixed(150_f32)),
-            text(self.ppid.to_string()).width(Length::Fixed(60_f32)),
             text(self.pid.to_string()).width(Length::Fixed(60_f32)),
+            text(self.ppid.to_string()).width(Length::Fixed(60_f32)),
+            text(self.threads.to_string()).width(Length::Fixed(60_f32)),
             text(
                 self.cmdline
                     .as_ref()
@@ -153,10 +154,9 @@ impl ProcInfo {
     }
 }
 
-#[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct ProcInfoVec {
-    pub is_tree: bool, // TODO: draw tree
+    pub is_tree: bool,
     inner: Vec<ProcInfo>,
 }
 
@@ -164,8 +164,9 @@ impl ProcInfoVec {
     pub fn title(&self) -> Element<Message> {
         let row: Element<Message> = row![
             text("Name").width(Length::Fixed(150_f32)),
-            text("PPid").width(Length::Fixed(60_f32)),
             text("Pid").width(Length::Fixed(60_f32)),
+            text("PPid").width(Length::Fixed(60_f32)),
+            text("Threads").width(Length::Fixed(60_f32)),
             text("Cmdline")
         ]
         .spacing(10)
