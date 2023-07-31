@@ -29,14 +29,12 @@ impl CpuMessageVec {
     }
 }
 
-#[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct CpuMessage {
     pub name: String,
     pub processor: usize,
     pub mhz: String, // TODO: to i32
     pub cache_size: String,
-    pub show_more: bool,
 }
 
 use crate::Message;
@@ -99,7 +97,6 @@ pub(super) fn get_cpuinfo() -> Option<Vec<CpuMessage>> {
             processor,
             mhz,
             cache_size,
-            show_more: false,
         });
     }
     Some(output)

@@ -502,9 +502,4 @@ impl ProcInfoVec {
         }
         self.inner_tree = procinfos
     }
-
-    #[allow(unused)]
-    pub fn to_vec(&self) -> &Vec<ProcInfo> {
-        &self.inner
-    }
 }
