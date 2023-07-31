@@ -42,7 +42,7 @@ fn names_from_xml(xml: String) -> Result<Vec<String>, quick_xml::Error> {
                     for att in element.attributes().flatten() {
                         if att.key.as_ref() == b"name" {
                             interfaces
-                                .push(att.decode_and_unescape_value(&mut reader)?.to_string());
+                                .push(att.decode_and_unescape_value(&reader)?.to_string());
                         }
                     }
                 }
@@ -82,7 +82,7 @@ impl UnitInfo {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct UnitInterfaceInfoVec(Vec<UnitInfo>);
 
 impl UnitInterfaceInfoVec {
