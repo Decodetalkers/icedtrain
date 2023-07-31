@@ -48,8 +48,7 @@ impl ProcInfo {
     fn is_match_pattern(&self, re: regex::Regex) -> bool {
         re.is_match(&self.name.to_lowercase())
             || re.is_match(
-                self
-                    .cmdline
+                self.cmdline
                     .as_ref()
                     .unwrap_or(&"".to_string().to_lowercase()),
             )
@@ -58,6 +57,24 @@ impl ProcInfo {
                 .iter()
                 .any(|unit| unit.is_match_pattern(re.clone()))
     }
+
+    fn filter_children_with_pattern(&self, re: regex::Regex) -> Self {
+        if self.children.is_empty() {
+            return self.clone();
+        }
+        let children = self
+            .children
+            .iter()
+            .filter(|unit| unit.is_match_pattern(re.clone()))
+            .cloned()
+            .map(|unit| unit.filter_children_with_pattern(re.clone()))
+            .collect();
+        Self {
+            children,
+            ..self.clone()
+        }
+    }
+
     pub fn treeview(&self, tabnum: usize) -> Element<Message> {
         let ppidlen = 60_f32 + tabnum as f32 * 30_f32;
         let row: Element<Message> = row![
@@ -370,12 +387,14 @@ impl ProcInfoVec {
             .iter()
             .filter(|unit| unit.is_match_pattern(re.clone()))
             .cloned()
+            .map(|unit| unit.filter_children_with_pattern(re.clone()))
             .collect();
         self.inner_tree_search = self
             .inner_tree
             .iter()
             .filter(|unit| unit.is_match_pattern(re.clone()))
             .cloned()
+            .map(|unit| unit.filter_children_with_pattern(re.clone()))
             .collect();
     }
 
