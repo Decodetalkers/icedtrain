@@ -121,79 +121,85 @@ impl Application for BaseTop {
         let bottom: Element<_> = match self.page {
             Page::CpuInfoPage => {
                 if self.cpuinfos.is_empty() {
-                    container(text("None")).center_y().center_x().into()
-                } else {
-                    container(scrollable(
-                        column(self.cpuinfos.iter().map(|cpuinfo| cpuinfo.view()).collect())
-                            .spacing(20),
-                    ))
-                    .height(Length::Fill)
-                    .into()
+                    return container(text("No CpuInfos now"))
+                        .center_y()
+                        .center_x()
+                        .into();
                 }
+
+                container(scrollable(
+                    column(self.cpuinfos.iter().map(|cpuinfo| cpuinfo.view()).collect())
+                        .spacing(20),
+                ))
+                .height(Length::Fill)
+                .into()
             }
             Page::ProcInfoPage => {
                 if self.procinfos.is_empty() {
-                    container(text("None")).center_y().center_x().into()
-                } else {
-                    container(
-                        column({
-                            let mut col: Vec<Element<Message>> = Vec::new();
-                            if self.procinfos.showsearchbar {
-                                col.push(self.procinfos.searchbar());
-                            }
-                            col.append(&mut vec![
-                                self.procinfos.top_buttons(),
-                                self.procinfos.title(),
-                                scrollable({
-                                    if self.procinfos.showsearchbar {
-                                        column(match self.procinfos.infoshowkind {
-                                            InfoShowKind::Normal => self
-                                                .procinfos
-                                                .iter_search()
-                                                .map(|procinfo| procinfo.view())
-                                                .collect(),
-                                            InfoShowKind::TreeWithFullInfo => self
-                                                .procinfos
-                                                .iter_tree_search()
-                                                .map(|procinfo| procinfo.treeview(0))
-                                                .collect(),
-                                            InfoShowKind::TreeWithLessInfo => self
-                                                .procinfos
-                                                .iter_search()
-                                                .map(|procinfo| procinfo.treeview(0))
-                                                .collect(),
-                                        })
-                                        .spacing(20)
-                                    } else {
-                                        column(match self.procinfos.infoshowkind {
-                                            InfoShowKind::Normal => self
-                                                .procinfos
-                                                .iter()
-                                                .map(|procinfo| procinfo.view())
-                                                .collect(),
-                                            InfoShowKind::TreeWithFullInfo => self
-                                                .procinfos
-                                                .iter_tree()
-                                                .map(|procinfo| procinfo.treeview(0))
-                                                .collect(),
-                                            InfoShowKind::TreeWithLessInfo => self
-                                                .procinfos
-                                                .iter()
-                                                .map(|procinfo| procinfo.treeview(0))
-                                                .collect(),
-                                        })
-                                        .spacing(20)
-                                    }
-                                })
-                                .into(),
-                            ]);
-                            col
-                        })
-                        .spacing(10),
-                    )
-                    .height(Length::Fill)
-                    .into()
+                    return container(text("No procInfos now"))
+                        .center_y()
+                        .center_x()
+                        .into();
                 }
+
+                container(
+                    column({
+                        let mut col: Vec<Element<Message>> = Vec::new();
+                        if self.procinfos.showsearchbar {
+                            col.push(self.procinfos.searchbar());
+                        }
+                        col.append(&mut vec![
+                            self.procinfos.top_buttons(),
+                            self.procinfos.title(),
+                            scrollable({
+                                if self.procinfos.showsearchbar {
+                                    column(match self.procinfos.infoshowkind {
+                                        InfoShowKind::Normal => self
+                                            .procinfos
+                                            .iter_search()
+                                            .map(|procinfo| procinfo.view())
+                                            .collect(),
+                                        InfoShowKind::TreeWithFullInfo => self
+                                            .procinfos
+                                            .iter_tree_search()
+                                            .map(|procinfo| procinfo.treeview(0))
+                                            .collect(),
+                                        InfoShowKind::TreeWithLessInfo => self
+                                            .procinfos
+                                            .iter_search()
+                                            .map(|procinfo| procinfo.treeview(0))
+                                            .collect(),
+                                    })
+                                    .spacing(20)
+                                } else {
+                                    column(match self.procinfos.infoshowkind {
+                                        InfoShowKind::Normal => self
+                                            .procinfos
+                                            .iter()
+                                            .map(|procinfo| procinfo.view())
+                                            .collect(),
+                                        InfoShowKind::TreeWithFullInfo => self
+                                            .procinfos
+                                            .iter_tree()
+                                            .map(|procinfo| procinfo.treeview(0))
+                                            .collect(),
+                                        InfoShowKind::TreeWithLessInfo => self
+                                            .procinfos
+                                            .iter()
+                                            .map(|procinfo| procinfo.treeview(0))
+                                            .collect(),
+                                    })
+                                    .spacing(20)
+                                }
+                            })
+                            .into(),
+                        ]);
+                        col
+                    })
+                    .spacing(10),
+                )
+                .height(Length::Fill)
+                .into()
             }
         };
         column![self.buttonbox(), bottom].into()
