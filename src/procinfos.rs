@@ -369,12 +369,12 @@ impl ProcInfoVec {
 
     pub fn refresh(&mut self) {
         let mut procs = Vec::new();
-        for pa in glob::glob("/proc/*/status").into_iter().flatten().flatten() {
-            if let Some(procinfo) = ProcInfo::from_file(pa.clone()) {
-                let abpath = pa.as_path().to_string_lossy().to_string();
-                if abpath == "/proc/self/status" || abpath == "/proc/thread-self/status" {
-                    continue;
-                }
+        for pa in glob::glob("/proc/[0-9]*/status")
+            .into_iter()
+            .flatten()
+            .flatten()
+        {
+            if let Some(procinfo) = ProcInfo::from_file(pa) {
                 procs.push(procinfo);
             }
         }
