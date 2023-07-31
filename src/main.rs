@@ -6,9 +6,11 @@ use iced::widget::{button, column, container, row, scrollable, text, text_input,
 
 mod cpuinfo;
 mod procinfos;
+mod systedunitinfo;
 
 use cpuinfo::CpuMessageVec;
 use procinfos::{InfoShowKind, ProcInfoVec};
+use systedunitinfo::UnitInterfaceInfoVec;
 
 fn main() -> iced::Result {
     env_logger::builder().format_timestamp(None).init();
@@ -20,18 +22,23 @@ pub enum Page {
     #[default]
     CpuInfoPage,
     ProcInfoPage,
+    SystemdUnitInfoPage,
 }
 
 struct BaseTop {
     page: Page,
     cpuinfos: CpuMessageVec,
     procinfos: ProcInfoVec,
+    systedunitinfos: UnitInterfaceInfoVec,
 }
 
 #[derive(Clone, Debug)]
 pub enum Message {
     RequestCpuInfoUpdate,
     RequestProcInfoUpdate,
+    RequestSystemdUnitInfoUpdate,
+    SystemdUnitUpdateFinished(Result<UnitInterfaceInfoVec, systedunitinfo::UnitGetError>),
+
     StateChanged(Page),
 
     ProcInfoShowTree(procinfos::InfoShowKind),
@@ -81,6 +88,16 @@ impl BaseTop {
                 })
                 .on_press(Message::StateChanged(Page::ProcInfoPage))
                 .padding(8),
+            button(text("Systemd"))
+                .style({
+                    if self.page == Page::SystemdUnitInfoPage {
+                        theme::Button::Primary
+                    } else {
+                        theme::Button::Text
+                    }
+                })
+                .on_press(Message::StateChanged(Page::SystemdUnitInfoPage))
+                .padding(8),
         ])
         .width(Length::Fill)
         .center_x()
@@ -98,6 +115,7 @@ impl Application for BaseTop {
         match self.page {
             Page::CpuInfoPage => "SystemMonitor-CpuInfo".to_string(),
             Page::ProcInfoPage => "SystemMonitor-ProcInfo".to_string(),
+            Page::SystemdUnitInfoPage => "SystemMonitor-UnitInfo".to_string(),
         }
     }
 
@@ -107,10 +125,15 @@ impl Application for BaseTop {
                 page: Page::default(),
                 cpuinfos: CpuMessageVec::new(),
                 procinfos: ProcInfoVec::new(),
+                systedunitinfos: UnitInterfaceInfoVec::new(),
             },
             Command::batch(vec![
                 font::load(include_bytes!("../fonts/icons.ttf").as_slice())
                     .map(|_| Message::Nothing),
+                Command::perform(
+                    async { UnitInterfaceInfoVec::new().refresh().await },
+                    Message::SystemdUnitUpdateFinished,
+                ),
                 Command::perform(async {}, |_| Message::RequestCpuInfoUpdate),
                 Command::perform(async {}, |_| Message::RequestProcInfoUpdate),
             ]),
@@ -201,6 +224,26 @@ impl Application for BaseTop {
                 .height(Length::Fill)
                 .into()
             }
+            Page::SystemdUnitInfoPage => 'systemdblock: {
+                if self.systedunitinfos.is_empty() {
+                    break 'systemdblock container(text("No SystemdInfo now"))
+                        .center_y()
+                        .center_x()
+                        .into();
+                }
+
+                container(scrollable(
+                    column(
+                        self.systedunitinfos
+                            .iter()
+                            .map(|unit| unit.view())
+                            .collect(),
+                    )
+                    .spacing(10),
+                ))
+                .height(Length::Fill)
+                .into()
+            }
         };
         column![self.buttonbox(), bottom].into()
     }
@@ -209,6 +252,19 @@ impl Application for BaseTop {
         match message {
             Message::RequestCpuInfoUpdate => self.cpuinfos.refresh(),
             Message::RequestProcInfoUpdate => self.procinfos.refresh(),
+            Message::RequestSystemdUnitInfoUpdate => {
+                let systemd1unitinfo = self.systedunitinfos.clone();
+                return Command::perform(
+                    async move { systemd1unitinfo.refresh().await },
+                    Message::SystemdUnitUpdateFinished,
+                );
+            }
+            Message::SystemdUnitUpdateFinished(Ok(systemd1infos)) => {
+                self.systedunitinfos = systemd1infos
+            }
+            Message::SystemdUnitUpdateFinished(Err(e)) => {
+                eprintln!("Systemd Unit Update Error {e}");
+            }
             Message::StateChanged(page) => self.page = page,
             Message::ProcInfoShowTree(state) => self.procinfos.infoshowkind = state,
             Message::ProcSortMethodChanged(method) => self.procinfos.set_sort_method(method),
@@ -230,6 +286,8 @@ impl Application for BaseTop {
                 .map(|_| Message::RequestCpuInfoUpdate),
             iced::time::every(std::time::Duration::from_secs(2))
                 .map(|_| Message::RequestProcInfoUpdate),
+            iced::time::every(std::time::Duration::from_secs(60))
+                .map(|_| Message::RequestSystemdUnitInfoUpdate),
             iced::subscription::events_with(|event, status| {
                 if let iced::event::Status::Captured = status {
                     return None;
