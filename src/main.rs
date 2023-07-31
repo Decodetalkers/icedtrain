@@ -119,9 +119,9 @@ impl Application for BaseTop {
 
     fn view(&self) -> iced::Element<'_, Self::Message, iced::Renderer<Self::Theme>> {
         let bottom: Element<_> = match self.page {
-            Page::CpuInfoPage => {
+            Page::CpuInfoPage => 'infoblock: {
                 if self.cpuinfos.is_empty() {
-                    return container(text("No CpuInfos now"))
+                    break 'infoblock container(text("No CpuInfos now"))
                         .center_y()
                         .center_x()
                         .into();
@@ -134,9 +134,9 @@ impl Application for BaseTop {
                 .height(Length::Fill)
                 .into()
             }
-            Page::ProcInfoPage => {
+            Page::ProcInfoPage => 'procblock: {
                 if self.procinfos.is_empty() {
-                    return container(text("No procInfos now"))
+                    break 'procblock container(text("No procInfos now"))
                         .center_y()
                         .center_x()
                         .into();
