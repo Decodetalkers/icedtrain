@@ -45,6 +45,21 @@ pub struct ProcInfo {
 }
 
 impl ProcInfo {
+    fn sort_by(&mut self, sort_method: SortMethod) {
+        if !self.children.is_empty() {
+            self.children.sort_by(|a, b| match sort_method {
+                SortMethod::Pid => a.pid.partial_cmp(&b.pid).unwrap(),
+                SortMethod::PPid => a.ppid.partial_cmp(&b.ppid).unwrap(),
+                SortMethod::Thread => a.threads.partial_cmp(&b.threads).unwrap(),
+                SortMethod::Name => a.name.partial_cmp(&b.name).unwrap(),
+                SortMethod::CmdLine => a.cmdline.partial_cmp(&b.cmdline).unwrap(),
+            });
+            for child in self.children.iter_mut() {
+                child.sort_by(sort_method);
+            }
+        }
+    }
+
     fn is_match_pattern(&self, re: regex::Regex) -> bool {
         re.is_match(&self.name.to_lowercase())
             || re.is_match(
@@ -230,6 +245,10 @@ impl ProcInfoVec {
             SortMethod::Name => a.name.partial_cmp(&b.name).unwrap(),
             SortMethod::CmdLine => a.cmdline.partial_cmp(&b.cmdline).unwrap(),
         });
+        for item in self.inner.iter_mut() {
+            item.sort_by(self.sort_method);
+        }
+
         self.inner_search.sort_by(|a, b| match self.sort_method {
             SortMethod::Pid => a.pid.partial_cmp(&b.pid).unwrap(),
             SortMethod::PPid => a.ppid.partial_cmp(&b.ppid).unwrap(),
@@ -237,6 +256,10 @@ impl ProcInfoVec {
             SortMethod::Name => a.name.partial_cmp(&b.name).unwrap(),
             SortMethod::CmdLine => a.cmdline.partial_cmp(&b.cmdline).unwrap(),
         });
+        for item in self.inner_search.iter_mut() {
+            item.sort_by(self.sort_method);
+        }
+
         self.inner_tree.sort_by(|a, b| match self.sort_method {
             SortMethod::Pid => a.pid.partial_cmp(&b.pid).unwrap(),
             SortMethod::PPid => a.ppid.partial_cmp(&b.ppid).unwrap(),
@@ -244,6 +267,10 @@ impl ProcInfoVec {
             SortMethod::Name => a.name.partial_cmp(&b.name).unwrap(),
             SortMethod::CmdLine => a.cmdline.partial_cmp(&b.cmdline).unwrap(),
         });
+        for item in self.inner_tree.iter_mut() {
+            item.sort_by(self.sort_method);
+        }
+
         self.inner_tree_search
             .sort_by(|a, b| match self.sort_method {
                 SortMethod::Pid => a.pid.partial_cmp(&b.pid).unwrap(),
@@ -252,6 +279,9 @@ impl ProcInfoVec {
                 SortMethod::Name => a.name.partial_cmp(&b.name).unwrap(),
                 SortMethod::CmdLine => a.cmdline.partial_cmp(&b.cmdline).unwrap(),
             });
+        for item in self.inner_tree_search.iter_mut() {
+            item.sort_by(self.sort_method);
+        }
     }
 
     pub fn searchbar(&self) -> Element<Message> {
